@@ -1,0 +1,94 @@
+
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+float Grav = 0.07;
+float v = 0.5; // viscosity ?
+float K = 0.5;
+vec2 Step = vec2(1.0f/128.0f);
+
+
+float dt = 0.1;
+uniform sampler2D FieldSampler;
+uniform sampler2D DensitySampler;
+uniform sampler2D FieldLinearSampler;
+
+vec4 effect( vec4 color, Image Texture, vec2 texture_coords, vec2 screen_coords)
+{	
+	float CScale=1.0f/(2.0f);
+	
+	vec2 	UV 	= texture_coords.xy;
+	vec4 FC	= texture2D(FieldSampler,UV);
+	
+	bool isBoundary=texture2D(DensitySampler,UV).w<0.1f;
+	
+	if (!isBoundary)
+	{			
+		vec3 FR	= texture2D(FieldSampler,UV+vec2(Step.x,0)).rgb;
+		vec3 FL	= texture2D(FieldSampler,UV-vec2(Step.x,0)).rgb;			
+		vec3 FT	= texture2D(FieldSampler,UV+vec2(0,Step.y)).rgb;
+		vec3 FD	= texture2D(FieldSampler,UV-vec2(0,Step.y)).rgb;
+		
+		mat4x3 FieldMat={FR,FL,FT,FD};
+
+		//du/dx,du/dy
+		vec3 	UdX			= vec3(FieldMat[0]-FieldMat[1])*CScale;
+		vec3 	UdY			= vec3(FieldMat[2]-FieldMat[3])*CScale;
+		
+		float 	Udiv		= UdX.x+UdY.y;
+		vec2 	DdX			= vec2(UdX.z,UdY.z);			
+		
+		///<
+		///< Solve for Velocity. 	
+		///<
+		mat4x2 temp = mat4x2(FR.xy,FL.xy,FT.xy,FD.xy);
+		vec2  Laplacian 		= (temp*vec4(1.0))-4.0f*FC.xy;
+		Laplacian/=1.0f;
+					
+		vec2 	PdX 			= (K/dt)*DdX;		
+		vec2 	ViscosityForce 	= v*Laplacian/FC.z;
+		
+		///<
+		///< Solve for density.
+		///<
+		FC.z 	-=  dt*dot(vec3(DdX,Udiv),FC.xyz);
+		///< See Stability Condition.
+			FC.z 	= clamp(FC.z,0.2f,3.0f);
+				
+		vec2 	ExternalForces 	= 	vec2(0);
+		if (texture2D(DensitySampler,UV).x > 0.1f)
+			ExternalForces=vec2(0.0f,Grav);			
+			
+		///< Semi-lagrangian advection.
+		vec2 Was 	= UV - dt*FC.xy*Step;
+		FC.xy 	= texture2D(FieldLinearSampler,Was).xy;	
+			
+		FC.xy 	+= dt*(ViscosityForce - PdX + ExternalForces);	
+		
+
+		vec2[4] Directions;
+		Directions[0] = vec2(1.,0.);
+		Directions[1] = vec2(0.,-1.);
+		Directions[2] = vec2(-1.,0.);
+		Directions[3] = vec2(0.,1.);
+		///< Boundary conditions.
+		for (int i=0; i<4; ++i)
+		{
+			if (texture2D(DensitySampler,UV+Step*Directions[i]).w < 0.1f) 
+			{
+				vec2 SetToZero=(1-abs(Directions[i]));
+				FC.xy*=SetToZero;
+			}
+		}				
+	}
+		
+	return FC;
+}
+#endif

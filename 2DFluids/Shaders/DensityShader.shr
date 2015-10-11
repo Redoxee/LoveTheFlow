@@ -1,0 +1,34 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+uniform sampler2D DensitySampler;
+uniform sampler2D DensityLinearSampler;
+uniform sampler2D FieldLinearSampler;
+
+vec2 Step = vec2(1.0f/128.0f);
+float dt = 0.1;
+
+vec4 effect( vec4 color, Image texture, vec2 PSInput, vec2 screen_coords)
+{	
+	vec2 UV 	= PSInput.xy;
+	vec4 Density		= texture2D(DensitySampler,UV);
+	
+	if (Density.w>0.1f)
+	{					
+		///< Semi-lagrangian advection.			
+		vec2 Was 	= UV - dt*texture2D(FieldLinearSampler,UV).xy*Step;
+		Density.x 	= texture2D(DensityLinearSampler,Was).x;	
+	}
+	
+	return Density;
+
+}
+
+#endif
