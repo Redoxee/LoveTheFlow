@@ -8,17 +8,17 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
  
 #ifdef PIXEL
 
-uniform sampler2D DensitySampler;
+
 uniform sampler2D DensityLinearSampler;
 uniform sampler2D FieldLinearSampler;
 
-vec2 Step = vec2(1.0f/128.0f);
+vec2 Step = vec2(1.0f/sampleResolution.0f);
 float dt = 0.1;
 
-vec4 effect( vec4 color, Image texture, vec2 PSInput, vec2 screen_coords)
+vec4 effect( vec4 color, Image DensitySampler, vec2 PSInput, vec2 screen_coords)
 {	
 	vec2 UV 	= PSInput.xy;
-	vec4 Density		= texture2D(DensitySampler,UV);
+	vec4 Density		= texture2D(DensitySampler,UV) * vec4(1.,0.,0.,1.);
 	
 	if (Density.w>0.1f)
 	{					

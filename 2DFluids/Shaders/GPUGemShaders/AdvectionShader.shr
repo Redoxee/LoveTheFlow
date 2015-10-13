@@ -1,0 +1,25 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+float dt = 0.1;
+vec2 step = vec2(1.0f/sampleResolution.0f);
+
+uniform sampler2D quantityField;
+
+vec4 effect( vec4 color, Image vectorField, vec2 texture_coords, vec2 screen_coords)
+{
+
+    vec2 uv = texture_coords.xy;
+    vec2 pos = uv - dt * step * texture2D(vectorField, uv).xy;
+
+
+    return  texture2D(quantityField,pos);
+}
+#endif

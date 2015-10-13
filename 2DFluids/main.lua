@@ -1,5 +1,5 @@
 
-renderResolution = 128
+renderResolution = 256
 renderWidth = renderResolution
 renderHeight = renderResolution
 
@@ -15,7 +15,9 @@ densityTexture = false
 velocityShader = false
 densityShader = false
 
+magnitudeShader = false
 
+stillImage = false
 
 fullQuad = false
 
@@ -24,27 +26,44 @@ function love.load()
 	Initialize()
 end
 Initialize = function()
-	
+
 	tempTexture = love.graphics.newCanvas(renderWidth,renderHeight)
 	velocityTexture = love.graphics.newCanvas(renderWidth,renderHeight)
 	densityTexture = love.graphics.newCanvas(renderWidth,renderHeight)
 
 	renderQuad = love.graphics.newQuad(0,0,renderWidth,renderHeight,renderWidth,renderHeight)
 
-	velocityShader = love.graphics.newShader("Shaders/VelocityShader.shr")
-	densityShader = love.graphics.newShader("Shaders/DensityShader.shr")
+
+	local shaderParameters = {
+		sampleResolution = renderResolution
+	}
+
+	velocityShader = BuildShaderWithParameter("VelocityShader",shaderParameters)
+	densityShader = BuildShaderWithParameter("DensityShader",shaderParameters)
+
+	magnitudeShader = love.graphics.newShader("Shaders/DrawMagnitude.shr")
 
 	fullQuad = love.graphics.newQuad(0,0,windowsWidth,windowsHeight,windowsWidth,windowsHeight)
 
 	love.graphics.setCanvas(velocityTexture)
-	local img = love.graphics.newImage("Media/placeholder.png")
-	love.graphics.draw(img,renderQuad)
+	stillImage = love.graphics.newImage("Media/placeholder.png")
+	love.graphics.draw(stillImage,renderQuad)
+	love.graphics.setCanvas(densityTexture)
+	love.graphics.draw(stillImage,renderQuad)
 	love.graphics.setCanvas()
 
 end
 
-ComputeFluid = function()
+ApplyImage = function()
+	
+	love.graphics.setCanvas(velocityTexture)
+	love.graphics.draw(stillImage,renderQuad)
+	love.graphics.setCanvas(densityTexture)
+	love.graphics.draw(stillImage,renderQuad)
+	love.graphics.setCanvas()
+end
 
+ComputeFluid = function()
 	local g = love.graphics
 	local setCanvas = g.setCanvas
 	local setShader = g.setShader
@@ -52,7 +71,7 @@ ComputeFluid = function()
 	setCanvas(tempTexture)
 	g.clear()
 	setShader(velocityShader)
-	velocityShader:send("FieldSampler",velocityTexture)
+
 	velocityShader:send("DensitySampler",densityTexture)
 	velocityShader:send("FieldLinearSampler",velocityTexture)
 	g.draw(velocityTexture,renderQuad,0,0)
@@ -63,7 +82,7 @@ ComputeFluid = function()
 	setCanvas(prevVelocity)
 	g.clear()
 	setShader(densityShader)
-	densityShader:send("DensitySampler",densityTexture)
+
 	densityShader:send("DensityLinearSampler",densityTexture)
 	densityShader:send("FieldLinearSampler",velocityTexture)
 	g.draw(densityTexture,renderQuad,0,0)
@@ -82,6 +101,12 @@ DrawVelocity = function()
 	love.graphics.draw(velocityTexture,fullQuad)
 end
 
+DrawVelocityMagnitude = function()
+	love.graphics.clear()
+	love.graphics.setShader(magnitudeShader)
+	love.graphics.draw(velocityTexture,fullQuad)
+end
+
 DrawDensity = function()
 	love.graphics.clear()
 	love.graphics.draw(densityTexture,fullQuad)
@@ -90,7 +115,7 @@ end
 
 function love.draw()
 	ComputeFluid()
-	DrawDensity()
+	DrawVelocity()
 end
 
 function love.update( dt )
@@ -98,4 +123,31 @@ function love.update( dt )
 	if love.keyboard.isDown("escape") then
   		love.event.push('quit')
 	end
+end
+
+
+BuildShaderWithParameter = function(shaderName,parameters)
+	print("Building : " .. tostring(shaderName))
+	local shaderText = GetShader(shaderName)
+	if parameters then
+		for k,v in pairs(parameters) do
+			shaderText = shaderText:gsub(k,v)
+		end
+	end
+	return love.graphics.newShader(shaderText)
+end
+
+GetShader = function(name)
+	local shdr = ""
+	local BASEPATH = "C:/Users/Anton/Documents/git/2DFluids/LoveTheFlow/2DFluids/"
+	local fileName = BASEPATH .. "Shaders/".. name .. ".shr"
+	local file = io.open(fileName,"r")
+	
+
+	for line in file:lines() do
+		shdr = shdr .. line .. "\n"
+	end
+
+	file:close()
+	return shdr
 end

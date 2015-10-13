@@ -1,0 +1,23 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+float dt = 0.1;
+float scale = (1.0f/sampleResolution.0f);
+
+uniform vec2 offset;
+
+vec4 effect( vec4 color, Image x, vec2 texture_coords, vec2 screen_coords)
+{
+
+    vec2 uv = texture_coords.xy;
+
+    return scale * texture2D(x, uv + offset);
+}
+#endif
