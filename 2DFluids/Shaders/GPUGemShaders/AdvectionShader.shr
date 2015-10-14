@@ -8,7 +8,7 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
  
 #ifdef PIXEL
 
-float dt = 0.1;
+uniform float dt;
 vec2 step = vec2(1.0f/sampleResolution.0f);
 
 uniform sampler2D quantityField;

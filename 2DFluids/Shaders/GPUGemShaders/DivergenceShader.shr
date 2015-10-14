@@ -24,6 +24,6 @@ vec4 effect( vec4 color, Image fieldSampler, vec2 texture_coords, vec2 screen_co
     vec4 wT = texture2D(fieldSampler, uv - vec2(0.,1.) * step);
     vec4 wB = texture2D(fieldSampler, uv + vec2(0.,1.) * step);
 
-    return halfrdx * ((wR.x - wL.x) + (wT.y - wB.y));
+    return vec4(halfrdx * ((wR.x - wL.x) + (wT.y - wB.y)));
 }
 #endif

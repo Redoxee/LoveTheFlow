@@ -1,3 +1,5 @@
+DT = 0.1
+
 
 renderResolution = 256
 renderWidth = renderResolution
@@ -8,14 +10,18 @@ windowsHeight = false
 
 renderQuad = false
 
-tempTexture = false
+bufferTexture = false
 velocityTexture = false
 densityTexture = false
+quantityTexture = false
 
-velocityShader = false
-densityShader = false
+advectionShader = false
+jacobiShader = false
+divergenceShader = false
+gradientSubstractionShader = false
+boundaryShader = false
 
-magnitudeShader = false
+additionShader = false
 
 stillImage = false
 
@@ -26,31 +32,38 @@ function love.load()
 	Initialize()
 end
 Initialize = function()
+	local g = love.graphics
 
-	tempTexture = love.graphics.newCanvas(renderWidth,renderHeight)
-	velocityTexture = love.graphics.newCanvas(renderWidth,renderHeight)
-	densityTexture = love.graphics.newCanvas(renderWidth,renderHeight)
+	bufferTexture = g.newCanvas(renderWidth,renderHeight)
+	velocityTexture = g.newCanvas(renderWidth,renderHeight)
+	densityTexture = g.newCanvas(renderWidth,renderHeight)
 
-	renderQuad = love.graphics.newQuad(0,0,renderWidth,renderHeight,renderWidth,renderHeight)
+	renderQuad = g.newQuad(0,0,renderWidth,renderHeight,renderWidth,renderHeight)
 
 
 	local shaderParameters = {
 		sampleResolution = renderResolution
 	}
 
-	velocityShader = BuildShaderWithParameter("VelocityShader",shaderParameters)
-	densityShader = BuildShaderWithParameter("DensityShader",shaderParameters)
 
-	magnitudeShader = love.graphics.newShader("Shaders/DrawMagnitude.shr")
+	advectionShader = BuildShaderWithParameter("GPUGemShaders/AdvectionShader", shaderParameters)
+	jacobiShader = BuildShaderWithParameter("GPUGemShaders/JacobiShader", shaderParameters)
+	divergenceShader = BuildShaderWithParameter("GPUGemShaders/DivergenceShader", shaderParameters)
+	gradientSubstractionShader = BuildShaderWithParameter("GPUGemShaders/DivergenceShader", shaderParameters)
+	boundaryShader = BuildShaderWithParameter("GPUGemShaders/BoundaryShader", shaderParameters)
 
-	fullQuad = love.graphics.newQuad(0,0,windowsWidth,windowsHeight,windowsWidth,windowsHeight)
+	additionShader = BuildShaderWithParameter("AdditionShader", shaderParameters)
 
-	love.graphics.setCanvas(velocityTexture)
-	stillImage = love.graphics.newImage("Media/placeholder.png")
-	love.graphics.draw(stillImage,renderQuad)
-	love.graphics.setCanvas(densityTexture)
-	love.graphics.draw(stillImage,renderQuad)
-	love.graphics.setCanvas()
+	magnitudeShader = g.newShader("Shaders/DrawMagnitude.shr")
+
+	fullQuad = g.newQuad(0,0,windowsWidth,windowsHeight,windowsWidth,windowsHeight)
+
+	g.setCanvas(velocityTexture)
+	stillImage = g.newImage("Media/placeholder.png")
+	g.draw(stillImage,renderQuad)
+	g.setCanvas(densityTexture)
+	g.draw(stillImage,renderQuad)
+	g.setCanvas()
 
 end
 
@@ -68,27 +81,42 @@ ComputeFluid = function()
 	local setCanvas = g.setCanvas
 	local setShader = g.setShader
 
-	setCanvas(tempTexture)
-	g.clear()
-	setShader(velocityShader)
-
-	velocityShader:send("DensitySampler",densityTexture)
-	velocityShader:send("FieldLinearSampler",velocityTexture)
+	-- advection velocity
+	setCanvas(bufferTexture)
+	setShader(advectionShader)
+	advectionShader:send("quantityField",velocityTexture)
+	advectionShader:send("dt",DT)
 	g.draw(velocityTexture,renderQuad,0,0)
+	local t = velocityTexture
+	velocityTexture = bufferTexture
+	bufferTexture = t
 
-	local prevVelocity = velocityTexture
-	velocityTexture = tempTexture
+	-- jacobi
+	for i = 1,10 do
+		local step = 1/renderResolution
+		local alpha = (step * step) / DT
+		local rBeta = 1/(4 + (step * step) / DT)
 
-	setCanvas(prevVelocity)
-	g.clear()
-	setShader(densityShader)
+		setCanvas(bufferTexture)
+		setShader(jacobiShader)
+		jacobiShader:send("quantityField",velocityTexture)
+		jacobiShader:send("alpha",alpha)
+		jacobiShader:send("rBeta",rBeta)
+		g.draw(velocityTexture,renderQuad,0,0)
+		local t = velocityTexture
+		velocityTexture = bufferTexture
+		bufferTexture = t
+	end
 
-	densityShader:send("DensityLinearSampler",densityTexture)
-	densityShader:send("FieldLinearSampler",velocityTexture)
-	g.draw(densityTexture,renderQuad,0,0)
+	-- Force
+	-- setCanvas(bufferTexture)
+	-- setShader(additionShader)
+	-- additionShader:send("additionalField",stillImage)
+	-- g.draw(velocityTexture,renderQuad,0,0)
+	-- local t = velocityTexture
+	-- velocityTexture = bufferTexture
+	-- bufferTexture = t
 
-	tempTexture = densityTexture
-	densityTexture = prevVelocity
 
 	setShader()
 	setCanvas()
@@ -119,7 +147,7 @@ function love.draw()
 end
 
 function love.update( dt )
-	
+	DT = dt
 	if love.keyboard.isDown("escape") then
   		love.event.push('quit')
 	end
