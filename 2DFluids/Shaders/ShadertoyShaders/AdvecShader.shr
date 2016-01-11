@@ -1,0 +1,24 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+vec2 invResolution = vec2(1.0)/##RENDERSIZE;
+
+uniform float dt;
+
+vec4 effect( vec4 color, Image velocityTexture, vec2 texCoord, vec2 screen_coords)
+{
+	vec2 uv  = texCoord * invResolution;
+	vec2 oldVelocity = texture2D(velocityTexture,uv).xy;
+	vec2 samplePos = uv - oldVelocity * dt * invResolution;
+	vec2 outputVelocity = texture2D(velocityTexture,samplePos).xy;
+
+	return vec4(outputVelocity,0.,0.);
+}
+#endif

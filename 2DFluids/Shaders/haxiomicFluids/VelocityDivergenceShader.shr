@@ -1,0 +1,54 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+float halfrdx = .5/##RENDERSIZE.0;
+vec2 invresolution = vec2(1.0/##RENDERSIZE);
+
+#define VELOCITY_BOUNDARY
+//sampling velocity texture factoring in boundary conditions
+vec2 sampleVelocity(sampler2D velocity, vec2 coord){
+    vec2 cellOffset = vec2(0.0, 0.0);
+    vec2 multiplier = vec2(1.0, 1.0);
+
+    //free-slip boundary: the average flow across the boundary is restricted to 0
+    //avg(uA.xy, uB.xy) dot (boundary normal).xy = 0
+    //walls
+    #ifdef VELOCITY_BOUNDARY
+    if(coord.x<0.0){
+        cellOffset.x = 1.0;
+        multiplier.x = -1.0;
+    }else if(coord.x>1.0){
+        cellOffset.x = -1.0;
+        multiplier.x = -1.0;
+    }
+    if(coord.y<0.0){
+        cellOffset.y = 1.0;
+        multiplier.y = -1.0;
+    }else if(coord.y>1.0){
+        cellOffset.y = -1.0;
+        multiplier.y = -1.0;
+    }
+    #endif
+
+    return multiplier * texture2D(velocity, coord + cellOffset * invresolution).xy;
+}
+
+vec4 effect( vec4 color, Image velocity, vec2 texture_coords, vec2 screen_coords)
+{
+
+	vec2 L = sampleVelocity(velocity, texture_coords - vec2(invresolution.x, 0));
+	vec2 R = sampleVelocity(velocity, texture_coords + vec2(invresolution.x, 0));
+	vec2 B = sampleVelocity(velocity, texture_coords - vec2(0, invresolution.y));
+	vec2 T = sampleVelocity(velocity, texture_coords + vec2(0, invresolution.y));
+    
+
+    return vec4( halfrdx * ((R.x - L.x) + (T.y - B.y)), 0, 0, 1);
+}
+#endif

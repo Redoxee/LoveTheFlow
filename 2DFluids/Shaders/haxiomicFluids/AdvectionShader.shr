@@ -14,8 +14,6 @@ vec2 simToTexelSpace(vec2 sim){
 
 uniform sampler2D target;
 
-this shader is no longer usable, re translat it from the GPU Gem chap 38
-
 float renderSize = ##RENDERSIZE;
 float rdx = 1.0f/##RENDERSIZE.0f;
 

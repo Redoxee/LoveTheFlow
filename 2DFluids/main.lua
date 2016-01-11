@@ -1,5 +1,6 @@
 DT = 0.1
 
+NB_ITERATION = 1
 
 renderResolution = 256
 renderWidth = renderResolution
@@ -12,16 +13,18 @@ renderQuad = false
 
 bufferTexture = false
 velocityTexture = false
-densityTexture = false
+pressureTexture = false
 quantityTexture = false
+divergenceTexture = false
 
-advectionShader = false
-jacobiShader = false
+advecShader = false
 divergenceShader = false
+jacobiIterationShader = false
 gradientSubstractionShader = false
-boundaryShader = false
 
 additionShader = false
+
+testShader = false
 
 stillImage = false
 
@@ -36,7 +39,8 @@ Initialize = function()
 
 	bufferTexture = g.newCanvas(renderWidth,renderHeight)
 	velocityTexture = g.newCanvas(renderWidth,renderHeight)
-	densityTexture = g.newCanvas(renderWidth,renderHeight)
+	pressureTexture = g.newCanvas(renderWidth,renderHeight)
+	divergenceTexture = g.newCanvas(renderWidth,renderHeight)
 
 	renderQuad = g.newQuad(0,0,renderWidth,renderHeight,renderWidth,renderHeight)
 
@@ -44,15 +48,12 @@ Initialize = function()
 	local shaderParameters = {
 		sampleResolution = renderResolution
 	}
+	shaderParameters["##RENDERSIZE"] = renderResolution
 
-
-	advectionShader = BuildShaderWithParameter("GPUGemShaders/AdvectionShader", shaderParameters)
-	jacobiShader = BuildShaderWithParameter("GPUGemShaders/JacobiShader", shaderParameters)
-	divergenceShader = BuildShaderWithParameter("GPUGemShaders/DivergenceShader", shaderParameters)
-	gradientSubstractionShader = BuildShaderWithParameter("GPUGemShaders/DivergenceShader", shaderParameters)
-	boundaryShader = BuildShaderWithParameter("GPUGemShaders/BoundaryShader", shaderParameters)
-
-	additionShader = BuildShaderWithParameter("AdditionShader", shaderParameters)
+	advecShader = BuildShaderWithParameter("ShadertoyShaders/AdvecShader", shaderParameters)
+	divergenceShader = BuildShaderWithParameter("ShadertoyShaders/DivergenceShader",shaderParameters)
+	jacobiIterationShader = BuildShaderWithParameter("ShadertoyShaders/JacobiIterationShader",shaderParameters)
+	gradientSubstractionShader = BuildShaderWithParameter("ShadertoyShaders/GradientSubstractionShader",shaderParameters)
 
 	magnitudeShader = g.newShader("Shaders/DrawMagnitude.shr")
 
@@ -61,8 +62,8 @@ Initialize = function()
 	g.setCanvas(velocityTexture)
 	stillImage = g.newImage("Media/placeholder.png")
 	g.draw(stillImage,renderQuad)
-	g.setCanvas(densityTexture)
-	g.draw(stillImage,renderQuad)
+	-- g.setCanvas(pressureTexture)
+	-- g.draw(stillImage,renderQuad)
 	g.setCanvas()
 
 end
@@ -71,7 +72,7 @@ ApplyImage = function()
 	
 	love.graphics.setCanvas(velocityTexture)
 	love.graphics.draw(stillImage,renderQuad)
-	love.graphics.setCanvas(densityTexture)
+	-- love.graphics.setCanvas(pressureTexture)
 	love.graphics.draw(stillImage,renderQuad)
 	love.graphics.setCanvas()
 end
@@ -83,40 +84,53 @@ ComputeFluid = function()
 
 	-- advection velocity
 	setCanvas(bufferTexture)
-	setShader(advectionShader)
-	advectionShader:send("quantityField",velocityTexture)
-	advectionShader:send("dt",DT)
+	setShader(advecShader)
+	advecShader:send("dt",DT)
 	g.draw(velocityTexture,renderQuad,0,0)
+
+	--swap
 	local t = velocityTexture
 	velocityTexture = bufferTexture
 	bufferTexture = t
 
-	-- jacobi
-	for i = 1,10 do
-		local step = 1/renderResolution
-		local alpha = (step * step) / DT
-		local rBeta = 1/(4 + (step * step) / DT)
 
+	-- divergence
+	setCanvas(bufferTexture)
+	setShader(divergenceShader)
+	-- divergenceShader:send("dt",DT)
+	g.draw(velocityTexture,renderQuad,0,0)
+
+	--swap
+	local t = divergenceTexture
+	divergenceTexture = bufferTexture
+	bufferTexture = t
+
+	-- JacobiIteratin
+	for i = 1 , NB_ITERATION do 
 		setCanvas(bufferTexture)
-		setShader(jacobiShader)
-		jacobiShader:send("quantityField",velocityTexture)
-		jacobiShader:send("alpha",alpha)
-		jacobiShader:send("rBeta",rBeta)
+		setShader(jacobiIterationShader)
+		-- jacobiIterationShader:send("dt",DT)
+		jacobiIterationShader:send("pressureTexture",pressureTexture)
+		jacobiIterationShader:send("divergenceTexture",divergenceTexture)
 		g.draw(velocityTexture,renderQuad,0,0)
-		local t = velocityTexture
-		velocityTexture = bufferTexture
+
+		--swap
+		local t = pressureTexture
+		pressureTexture = bufferTexture
 		bufferTexture = t
 	end
 
-	-- Force
-	-- setCanvas(bufferTexture)
-	-- setShader(additionShader)
-	-- additionShader:send("additionalField",stillImage)
-	-- g.draw(velocityTexture,renderQuad,0,0)
-	-- local t = velocityTexture
-	-- velocityTexture = bufferTexture
-	-- bufferTexture = t
+	setCanvas(bufferTexture)
+	setShader(gradientSubstractionShader)
+	-- gradientSubstractionShader:send("dt",DT)
+	gradientSubstractionShader:send("pressureTexture",pressureTexture)
+	g.draw(velocityTexture,renderQuad,0,0)
 
+
+	--swap
+	local t = velocityTexture
+	velocityTexture = bufferTexture
+	bufferTexture = t
 
 	setShader()
 	setCanvas()
@@ -135,9 +149,14 @@ DrawVelocityMagnitude = function()
 	love.graphics.draw(velocityTexture,fullQuad)
 end
 
-DrawDensity = function()
+DrawPressure = function()
 	love.graphics.clear()
-	love.graphics.draw(densityTexture,fullQuad)
+	love.graphics.draw(pressureTexture,fullQuad)
+end
+
+DrawDivergence = function()
+	love.graphics.clear()
+	love.graphics.draw(divergenceTexture,fullQuad)
 end
 
 

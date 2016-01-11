@@ -8,14 +8,14 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
  
 #ifdef PIXEL
 
-uniform sampler2D additionalField;
+uniform sampler2D x;
 
-vec4 effect( vec4 color, Image baseField, vec2 texture_coords, vec2 screen_coords)
+vec4 effect( vec4 color, Image u, vec2 texture_coords, vec2 screen_coords)
 {
 
-    vec2 uv = texture_coords.xy;
+    vec2 coord = texture_coords.xy;
     
 
-    return  texture2D(baseField,uv) + texture2D(additionalField,uv);
+    return  texture2D(u,coord) + texture2D(x,coord);
 }
 #endif

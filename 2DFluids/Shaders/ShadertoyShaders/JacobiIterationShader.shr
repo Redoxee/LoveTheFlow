@@ -1,0 +1,54 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+vec2 invResolution = vec2(1.0)/##RENDERSIZE;
+vec2 border;
+
+uniform sampler2D pressureTexture;
+uniform sampler2D divergenceTexture;
+uniform float dt;
+
+float samplePressure(vec2 pos)
+{
+    // Obstacle?
+    /*
+    if(texture2D(velocityTexture, pos).z > 0.0)
+    {
+        return 0.0;
+    }
+    */
+    
+    // Boundary condition: Vanish for at walls.
+    if(pos.x > 1.0 - border.x || pos.y > 1.0 - border.y ||
+      	pos.x < border.x || pos.y < border.y)
+    {
+        return 0.0;
+    }
+   	else
+    {
+    	return texture2D(pressureTexture, pos).x;
+    }
+}
+
+
+vec4 effect( vec4 color, Image velocityTexture, vec2 texCoord, vec2 screen_coords)
+{
+	border = invResolution * 2.;
+	vec2 uv  = texCoord * invResolution;
+
+    float div = texture2D(divergenceTexture, uv).x;
+    float x0 = samplePressure(uv - vec2(invResolution.x, 0));
+    float x1 = samplePressure(uv + vec2(invResolution.x, 0));
+    float y0 = samplePressure(uv - vec2(0, invResolution.y));
+    float y1 = samplePressure(uv + vec2(0, invResolution.y));
+    
+   	return vec4((x0 + x1 + y0 + y1 - div) * 0.25);
+}
+#endif

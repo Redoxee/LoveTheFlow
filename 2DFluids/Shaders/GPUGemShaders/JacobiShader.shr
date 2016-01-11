@@ -9,25 +9,26 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
 #ifdef PIXEL
 
 
-vec2 step = vec2(1.0f/sampleResolution.0f);
+float renderSize = ##RENDERSIZE;
+float rdx = 1.0f/##RENDERSIZE.0f;
 
 uniform sampler2D quantityField;
 
-uniform float alpha; // (step * step)/ dt
-uniform float rBeta; // 1/(4 + (step * step) / dt)
+uniform float alpha; // (rdx * rdx)/ dt
+uniform float rBeta; // 1/(4 + (rdx * rdx) / dt)
 
 vec4 effect( vec4 color, Image fieldSampler, vec2 texture_coords, vec2 screen_coords)
 {
 
-    vec2 uv = texture_coords.xy;
+    vec2 uv = (texture_coords.xy * renderSize);
 
-    vec4 xL = texture2D(fieldSampler,uv + vec2(1.,0.) * step);
-    vec4 xR = texture2D(fieldSampler,uv - vec2(1.,0.) * step);
-    vec4 xB = texture2D(fieldSampler,uv + vec2(0.,1.) * step);
-    vec4 xT = texture2D(fieldSampler,uv - vec2(0.,1.) * step);
+    vec4 xL = texture2D(fieldSampler,(uv + vec2(1.,0.))/ renderSize );
+    vec4 xR = texture2D(fieldSampler,(uv - vec2(1.,0.))/ renderSize );
+    vec4 xB = texture2D(fieldSampler,(uv + vec2(0.,1.))/ renderSize );
+    vec4 xT = texture2D(fieldSampler,(uv - vec2(0.,1.))/ renderSize );
     
-    vec4 bC = texture2D(quantityField,uv);
+    vec4 bC = texture2D(quantityField,uv / renderSize);
 
-    return  (xL + xR + xB + xT + alpha * bC) * rBeta;
+    return  (xL + xR + xB + xT - alpha * bC) * rBeta;
 }
 #endif

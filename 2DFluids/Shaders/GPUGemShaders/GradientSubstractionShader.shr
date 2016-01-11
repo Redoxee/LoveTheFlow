@@ -8,10 +8,9 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
  
 #ifdef PIXEL
 
-float dt = 0.1;
-vec2 step = vec2(1.0f/sampleResolution.0f);
+float rdx = 1.0f/sampleResolution.0f;
 
-uniform float halfrdx; // 0.5 / step
+uniform float halfrdx; 
 
 uniform sampler2D w;
 
@@ -20,10 +19,10 @@ vec4 effect( vec4 color, Image p, vec2 texture_coords, vec2 screen_coords)
 
     vec2 uv = texture_coords.xy;
     
-	float pL = texture2D(p, uv - vec2(1., 0.)*step).x;
-	float pR = texture2D(p, uv + vec2(1., 0.)*step).x;
-	float pB = texture2D(p, uv - vec2(0., 1.)*step).x;
-	float pT = texture2D(p, uv + vec2(0., 1.)*step).x;
+	float pL = texture2D(p, uv - vec2(1., 0.)*rdx).x;
+	float pR = texture2D(p, uv + vec2(1., 0.)*rdx).x;
+	float pB = texture2D(p, uv - vec2(0., 1.)*rdx).x;
+	float pT = texture2D(p, uv + vec2(0., 1.)*rdx).x;
 
 	vec4 uNew = texture2D(w, uv);
 	uNew.xy -= halfrdx * vec2(pR - pL, pT - pB);

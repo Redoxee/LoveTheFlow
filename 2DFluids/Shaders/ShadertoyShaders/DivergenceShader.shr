@@ -1,0 +1,27 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+vec2 invResolution = vec2(1.0)/##RENDERSIZE;
+
+uniform float dt;
+
+vec4 effect( vec4 color, Image velocityTexture, vec2 texCoord, vec2 screen_coords)
+{
+	vec2 uv  = texCoord * invResolution;
+
+    float x0 = texture2D(velocityTexture, uv - vec2(invResolution.x, 0)).x;
+    float x1 = texture2D(velocityTexture, uv + vec2(invResolution.x, 0)).x;
+    float y0 = texture2D(velocityTexture, uv - vec2(0, invResolution.y)).y;
+    float y1 = texture2D(velocityTexture, uv + vec2(0, invResolution.y)).y;
+    float divergence = ((x1-x0) + (y1-y0)) * 0.5;
+
+	return vec4(divergence);
+}
+#endif

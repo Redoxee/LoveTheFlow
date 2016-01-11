@@ -1,0 +1,29 @@
+#ifdef VERTEX
+
+vec4 position( mat4 transform_projection, vec4 vertex_position )
+{
+    return transform_projection * vertex_position;
+}
+#endif
+ 
+#ifdef PIXEL
+
+vec2 invResolution = vec2(1.0)/##RENDERSIZE;
+
+uniform sampler2D pressureTexture;
+uniform float dt;
+
+vec4 effect( vec4 color, Image velocityTexture, vec2 texCoord, vec2 screen_coords)
+{
+	vec2 uv  = texCoord * invResolution;
+
+    float x0 = texture2D(pressureTexture, uv - vec2(invResolution.x, 0)).x;
+    float x1 = texture2D(pressureTexture, uv + vec2(invResolution.x, 0)).x;
+    float y0 = texture2D(pressureTexture, uv - vec2(0, invResolution.y)).x;
+    float y1 = texture2D(pressureTexture, uv + vec2(0, invResolution.y)).x;
+    vec2 pressureGradient = (vec2(x1, y1) - vec2(x0, y0)) * 0.5;
+    vec2 oldV = texture2D(velocityTexture, uv).xy;
+    
+    return vec4(oldV - pressureGradient, 0.0, 0.0);
+}
+#endif

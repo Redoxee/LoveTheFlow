@@ -8,16 +8,14 @@ vec4 position( mat4 transform_projection, vec4 vertex_position )
  
 #ifdef PIXEL
 
-float rdx = (1.0f/sampleResolution.0f);
-
-uniform vec2 offset;
-uniform sampler2D x;
 
 vec4 effect( vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 {
 
     vec2 uv = texture_coords.xy;
+    
+    vec4 col = vec4(step(.5,distance(uv,vec2(.5))));
 
-    return rdx * texture2D(x, uv + offset * rdx);
+    return  col;
 }
 #endif
